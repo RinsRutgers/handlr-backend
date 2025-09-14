@@ -1,0 +1,55 @@
+services:
+  backend:
+    build: .
+    command: sh -c "python manage.py migrate && python manage.py create_minio_bucket && gunicorn spotshot.wsgi:application --bind 0.0.0.0:8000"
+    volumes:
+      - ./:/app
+    depends_on:
+      - db
+      - redis
+      - minio
+    ports:
+      - "8000:8000"
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: spotshot
+      POSTGRES_USER: spotshot
+      POSTGRES_PASSWORD: spotshot
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    restart: always
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  celery:
+    build: .
+    command: celery -A spotshot worker -l info
+    volumes:
+      - ./:/app
+    depends_on:
+      - backend
+      - redis
+
+volumes:
+  db_data:
+  minio_data:

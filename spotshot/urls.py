@@ -18,12 +18,16 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from .health import health_check, ready_check
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('users.urls')),
     path('api/', include('projects.urls')),
     path('api/', include('qr.urls')),
+    # Health check endpoints
+    path('health/', health_check, name='health_check'),
+    path('ready/', ready_check, name='ready_check'),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,78 @@
+{
+  "name": "SpotShot Backend",
+  "description": "Django backend for SpotShot application with QR code generation and photo management",
+  "repository": "https://github.com/your-username/spotshot-backend",
+  "logo": "",
+  "keywords": ["django", "python", "qr", "photos", "backend"],
+  "image": "heroku/python",
+  "stack": "heroku-24",
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    },
+    "worker": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:mini"
+    },
+    {
+      "plan": "heroku-redis:mini"
+    }
+  ],
+  "env": {
+    "DEBUG": {
+      "description": "Enable debug mode",
+      "value": "False"
+    },
+    "SECRET_KEY": {
+      "description": "Django secret key",
+      "generator": "secret"
+    },
+    "DJANGO_SETTINGS_MODULE": {
+      "description": "Django settings module to use",
+      "value": "spotshot.production_settings"
+    },
+    "USE_S3": {
+      "description": "Use AWS S3 for file storage",
+      "value": "True"
+    },
+    "AWS_ACCESS_KEY_ID": {
+      "description": "AWS Access Key ID for S3",
+      "required": false
+    },
+    "AWS_SECRET_ACCESS_KEY": {
+      "description": "AWS Secret Access Key for S3",
+      "required": false
+    },
+    "AWS_STORAGE_BUCKET_NAME": {
+      "description": "AWS S3 bucket name",
+      "required": false
+    },
+    "AWS_S3_REGION_NAME": {
+      "description": "AWS S3 region",
+      "value": "us-east-1",
+      "required": false
+    },
+    "FRONTEND_URL": {
+      "description": "Frontend application URL",
+      "value": "https://your-frontend-app.herokuapp.com"
+    },
+    "CORS_ALLOWED_ORIGINS": {
+      "description": "Comma-separated list of allowed CORS origins",
+      "value": "https://your-frontend-app.herokuapp.com"
+    }
+  },
+  "scripts": {
+    "postdeploy": "python manage.py migrate"
+  }
+}

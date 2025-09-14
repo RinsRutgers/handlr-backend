@@ -15,4 +15,6 @@ opencv-python-headless
 pyzbar
 numpy
 django-storages
-minio
+whitenoise
+dj-database-url
+python-decouple
