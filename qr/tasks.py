@@ -16,7 +16,6 @@ import logging
 import random
 import cv2
 import numpy as np
-from pyzbar import pyzbar
 import os
 from datetime import datetime
 
@@ -270,32 +269,42 @@ def analyze_photo_batch_for_qr_codes(batch_id):
 
 
 def extract_qr_code_from_image(image_field):
-    """Extract QR code data from an image using OpenCV and pyzbar"""
+    """Extract QR code data from an image using OpenCV and pyzbar.
+    Falls back to OpenCV's QRCodeDetector if pyzbar (zbar) is unavailable.
+    """
     try:
-        # Read image from Django file field (works with S3/MinIO)
+        try:
+            from pyzbar import pyzbar
+            use_pyzbar = True
+        except Exception as import_err:
+            logging.getLogger(__name__).warning(
+                f"pyzbar unavailable (likely missing zbar). Falling back to OpenCV QRCodeDetector. Details: {import_err}"
+            )
+            use_pyzbar = False
+
         image_field.open()
         image_data = image_field.read()
         image_field.close()
-        
-        # Convert bytes to numpy array
+
         nparr = np.frombuffer(image_data, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
         if image is None:
             return None
-        
-        # Convert to grayscale
+
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        
-        # Detect QR codes
-        qr_codes = pyzbar.decode(gray)
-        
-        if qr_codes:
-            # Return the first QR code found
-            return qr_codes[0].data.decode('utf-8')
-        
-        return None
-        
+
+        if use_pyzbar:
+            qr_codes = pyzbar.decode(gray)
+            if qr_codes:
+                return qr_codes[0].data.decode('utf-8')
+            return None
+        else:
+            detector = cv2.QRCodeDetector()
+            data, points, _ = detector.detectAndDecode(gray)
+            if points is not None and data:
+                return data
+            return None
+
     except Exception as e:
         logging.getLogger(__name__).error(f"Error extracting QR code from image: {str(e)}")
         return None

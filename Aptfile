@@ -1,0 +1,6 @@
+# System packages required at runtime on Heroku
+# zbar shared library for pyzbar
+libzbar0
+# OpenCV runtime (headless often still needs libgl)
+libgl1
+libglib2.0-0

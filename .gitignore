@@ -147,6 +147,9 @@ lerna-debug.log*
 # MinIO data (local development)
 minio_data/
 
+# Avoid shadowing PyPI minio package
+/minio/
+
 # Database backups
 *.sql
 *.dump

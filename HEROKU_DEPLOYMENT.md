@@ -118,6 +118,39 @@ heroku ps:scale worker=1
 heroku ps:scale beat=1
 ```
 
+## System Packages (pyzbar/OpenCV)
+
+`pyzbar` requires the `zbar` shared library at runtime. On Heroku, add the apt buildpack and an `Aptfile` to install system packages:
+
+```bash
+# Add the apt buildpack (must come before python)
+heroku buildpacks:add --index 1 heroku-community/apt
+
+# Verify buildpack order
+heroku buildpacks
+```
+
+This repository includes an `Aptfile` that installs:
+
+- libzbar0 (required for pyzbar)
+- libgl1 (OpenCV runtime)
+- libglib2.0-0 (OpenCV runtime)
+
+After adding the buildpack, trigger a rebuild:
+
+```bash
+git commit --allow-empty -m "Trigger rebuild for apt packages"
+git push heroku main
+```
+
+## Release Phase
+
+We use a `release` phase (see `Procfile`) to collect static files and run migrations before starting dynos. If migrations fail, the deploy will be rejected.
+
+```bash
+heroku logs --tail --dyno=release
+```
+
 ## Environment Variables Reference
 
 Here are all the environment variables you should set:
