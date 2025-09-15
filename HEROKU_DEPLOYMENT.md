@@ -1,12 +1,20 @@
 # SpotShot Backend - Heroku Deployment Guide
 
-This guide will help you deploy your Django SpotShot backend to Heroku.
+This guide will help you deploy your Django SpotShot backend to Heroku using the new configuration structure.
 
 ## Prerequisites
 
 1. [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli) installed
 2. Git repository initialized
 3. Heroku account created
+
+## New Configuration Structure
+
+This project now uses a modular settings configuration:
+- `spotshot/config/base.py` - Common settings for all environments
+- `spotshot/config/local.py` - Development settings
+- `spotshot/config/production.py` - Production settings
+- `spotshot/config/README.md` - Configuration documentation
 
 ## Files Created for Heroku Deployment
 
@@ -17,6 +25,40 @@ This guide will help you deploy your Django SpotShot backend to Heroku.
 - `spotshot/production_settings.py` - Production-ready Django settings
 - `app.json` - Heroku app configuration for one-click deploy
 - Updated `requirements.txt` - Added production dependencies
+
+## Quick Start Commands (Free Tier)
+
+Here's the complete sequence of commands to deploy SpotShot with free services:
+
+```bash
+# 1. Create Heroku app
+heroku create handlr-staging-backend --buildpack heroku/python
+
+# 2. Add free add-ons
+heroku addons:create heroku-postgresql:essential-0 --app handlr-staging-backend
+heroku addons:create heroku-redis:mini --app handlr-staging-backend
+heroku addons:create mailgun:starter --app handlr-staging-backend
+heroku addons:create bucketeer:hobbyist --app handlr-staging-backend
+
+# 3. Set environment variables
+heroku config:set DJANGO_SETTINGS_MODULE=spotshot.settings --app handlr-staging-backend
+heroku config:set SECRET_KEY="$(openssl rand -base64 64)" --app handlr-staging-backend
+heroku config:set DEBUG=False --app handlr-staging-backend
+heroku config:set ALLOWED_HOSTS=handlr-staging-backend.herokuapp.com --app handlr-staging-backend
+heroku config:set USE_S3=True --app handlr-staging-backend
+heroku config:set FRONTEND_URL=handlr-frontend-jw3j5ddp1-rinsrutgers-projects.vercel.app --app handlr-staging-backend
+heroku config:set CORS_ALLOWED_ORIGINS=handlr-frontend-jw3j5ddp1-rinsrutgers-projects.vercel.app --app handlr-staging-backend
+
+# 4. Deploy
+git push heroku main
+
+# 5. Run migrations and create superuser
+heroku run python manage.py migrate --app handlr-staging-backend
+heroku run python manage.py createsuperuser --app handlr-staging-backend
+
+# 6. Open your app
+heroku open --app handlr-staging-backend
+```
 
 ## Step-by-Step Deployment
 
@@ -31,58 +73,73 @@ git commit -m "Prepare for Heroku deployment"
 ### 2. Create Heroku App
 
 ```bash
-# Create a new Heroku app
-heroku create your-app-name
+# Create a new Heroku app with Python buildpack
+heroku create handlr-staging-backend --buildpack heroku/python
 
 # Or if you want Heroku to generate a name
-heroku create
+heroku create --buildpack heroku/python
 ```
 
 ### 3. Add Required Add-ons
 
 ```bash
-# Add PostgreSQL database
-heroku addons:create heroku-postgresql:mini
+# Add PostgreSQL database (Free tier)
+heroku addons:create heroku-postgresql:hobby-dev --app handlr-staging-backend
 
-# Add Redis for Celery
-heroku addons:create heroku-redis:mini
+# Promote the database (usually automatic)
+heroku pg:promote DATABASE_URL --app handlr-staging-backend
+
+# Add Redis for Celery (Free tier)
+heroku addons:create heroku-redis:mini --app handlr-staging-backend
+
+# Add email service (Free tier)
+heroku addons:create mailgun:starter --app handlr-staging-backend
+
+# Add S3-compatible storage (Free tier)
+heroku addons:create bucketeer:hobbyist --app handlr-staging-backend
 ```
 
 ### 4. Set Environment Variables
 
 ```bash
-# Set Django settings module
-heroku config:set DJANGO_SETTINGS_MODULE=spotshot.production_settings
+# Set Django settings module (using backwards-compatible settings.py)
+heroku config:set DJANGO_SETTINGS_MODULE=spotshot.settings --app handlr-staging-backend
+
+# Generate and set secret key
+heroku config:set SECRET_KEY="$(openssl rand -base64 64)" --app handlr-staging-backend
 
 # Set debug to false
-heroku config:set DEBUG=False
+heroku config:set DEBUG=False --app handlr-staging-backend
 
 # Set your app's URL in allowed hosts (replace with your actual app name)
-heroku config:set ALLOWED_HOSTS=your-app-name.herokuapp.com,localhost,127.0.0.1
-
-# Set secret key (generate a new one for production)
-heroku config:set SECRET_KEY="your-super-secret-key-here"
+heroku config:set ALLOWED_HOSTS=handlr-staging-backend.herokuapp.com,your-custom-domain.com --app handlr-staging-backend
 
 # Set frontend URL (replace with your frontend URL)
-heroku config:set FRONTEND_URL=https://your-frontend-app.herokuapp.com
+heroku config:set FRONTEND_URL=handlr-frontend-jw3j5ddp1-rinsrutgers-projects.vercel.app --app handlr-staging-backend
 
 # Set CORS allowed origins
-heroku config:set CORS_ALLOWED_ORIGINS=https://your-frontend-app.herokuapp.com
+heroku config:set CORS_ALLOWED_ORIGINS=handlr-frontend-jw3j5ddp1-rinsrutgers-projects.vercel.app --app handlr-staging-backend
 ```
 
-### 5. Configure AWS S3 (Recommended for Production)
+### 5. Configure Bucketeer S3 Storage (Free)
 
-Since MinIO isn't available on Heroku, you should use AWS S3 for file storage:
+Bucketeer provides free S3-compatible storage on Heroku:
 
 ```bash
 # Enable S3 usage
-heroku config:set USE_S3=True
+heroku config:set USE_S3=True --app handlr-staging-backend
 
-# Set AWS credentials (get these from AWS Console)
-heroku config:set AWS_ACCESS_KEY_ID=your-aws-access-key
-heroku config:set AWS_SECRET_ACCESS_KEY=your-aws-secret-key
-heroku config:set AWS_STORAGE_BUCKET_NAME=your-s3-bucket-name
-heroku config:set AWS_S3_REGION_NAME=us-east-1
+# Bucketeer automatically sets these environment variables:
+# BUCKETEER_AWS_ACCESS_KEY_ID
+# BUCKETEER_AWS_SECRET_ACCESS_KEY  
+# BUCKETEER_BUCKET_NAME
+# BUCKETEER_AWS_REGION
+
+# You can also set them manually if needed:
+# heroku config:set AWS_ACCESS_KEY_ID=$(heroku config:get BUCKETEER_AWS_ACCESS_KEY_ID --app handlr-staging-backend) --app handlr-staging-backend
+# heroku config:set AWS_SECRET_ACCESS_KEY=$(heroku config:get BUCKETEER_AWS_SECRET_ACCESS_KEY --app handlr-staging-backend) --app handlr-staging-backend
+# heroku config:set AWS_STORAGE_BUCKET_NAME=$(heroku config:get BUCKETEER_BUCKET_NAME --app handlr-staging-backend) --app handlr-staging-backend
+# heroku config:set AWS_S3_REGION_NAME=$(heroku config:get BUCKETEER_AWS_REGION --app handlr-staging-backend) --app handlr-staging-backend
 ```
 
 ### 6. Deploy to Heroku
@@ -99,23 +156,23 @@ git push heroku master
 
 ```bash
 # Run migrations
-heroku run python manage.py migrate
+heroku run python manage.py migrate --app handlr-staging-backend
 
 # Create a superuser (optional)
-heroku run python manage.py createsuperuser
+heroku run python manage.py createsuperuser --app handlr-staging-backend
 ```
 
 ### 8. Scale Your App
 
 ```bash
 # Scale web dyno
-heroku ps:scale web=1
+heroku ps:scale web=1 --app handlr-staging-backend
 
 # Scale worker dyno for Celery
-heroku ps:scale worker=1
+heroku ps:scale worker=1 --app handlr-staging-backend
 
 # Scale beat dyno for Celery Beat (if needed)
-heroku ps:scale beat=1
+heroku ps:scale beat=1 --app handlr-staging-backend
 ```
 
 ## System Packages (pyzbar/OpenCV)
@@ -124,10 +181,10 @@ heroku ps:scale beat=1
 
 ```bash
 # Add the apt buildpack (must come before python)
-heroku buildpacks:add --index 1 heroku-community/apt
+heroku buildpacks:add --index 1 heroku-community/apt --app handlr-staging-backend
 
 # Verify buildpack order
-heroku buildpacks
+heroku buildpacks --app handlr-staging-backend
 ```
 
 This repository includes an `Aptfile` that installs:
@@ -148,7 +205,7 @@ git push heroku main
 We use a `release` phase (see `Procfile`) to collect static files and run migrations before starting dynos. If migrations fail, the deploy will be rejected.
 
 ```bash
-heroku logs --tail --dyno=release
+heroku logs --tail --dyno=release --app handlr-staging-backend
 ```
 
 ## Environment Variables Reference
@@ -156,9 +213,9 @@ heroku logs --tail --dyno=release
 Here are all the environment variables you should set:
 
 ### Required
-- `DJANGO_SETTINGS_MODULE=spotshot.production_settings`
-- `SECRET_KEY` - Django secret key
-- `ALLOWED_HOSTS` - Your app domain
+- `DJANGO_SETTINGS_MODULE=spotshot.config.production`
+- `SECRET_KEY` - Django secret key (use `openssl rand -base64 64` to generate)
+- `ALLOWED_HOSTS` - Your app domain(s)
 - `DEBUG=False`
 
 ### Database (Automatically set by Heroku PostgreSQL addon)
@@ -167,55 +224,51 @@ Here are all the environment variables you should set:
 ### Redis (Automatically set by Heroku Redis addon)
 - `REDIS_URL` - Redis connection string
 
-### AWS S3 (Required if USE_S3=True)
+### Bucketeer S3 Storage (Automatically set by Bucketeer addon)
 - `USE_S3=True`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_STORAGE_BUCKET_NAME`
-- `AWS_S3_REGION_NAME`
+- `BUCKETEER_AWS_ACCESS_KEY_ID` - Access key (auto-set)
+- `BUCKETEER_AWS_SECRET_ACCESS_KEY` - Secret key (auto-set)
+- `BUCKETEER_BUCKET_NAME` - Bucket name (auto-set)
+- `BUCKETEER_AWS_REGION` - AWS region (auto-set)
+
+### Mailgun (Automatically set by Mailgun addon)
+- `MAILGUN_API_KEY` - Mailgun API key (auto-set)
+- `MAILGUN_DOMAIN` - Mailgun domain (auto-set)
 
 ### Optional
 - `FRONTEND_URL` - Your frontend application URL
-- `CORS_ALLOWED_ORIGINS` - Allowed CORS origins
+- `CORS_ALLOWED_ORIGINS` - Allowed CORS origins (comma-separated)
 - `DJANGO_LOG_LEVEL` - Logging level (default: INFO)
 
-## Setting Up AWS S3
+## Setting Up Bucketeer S3 Storage
 
-1. Create an S3 bucket in AWS Console
-2. Create an IAM user with S3 permissions
-3. Generate access keys for the IAM user
-4. Set the bucket policy to allow public read access for media files
+Bucketeer provides free S3-compatible storage that works seamlessly with django-storages:
 
-Example S3 bucket policy:
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "PublicReadGetObject",
-            "Effect": "Allow",
-            "Principal": "*",
-            "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::your-bucket-name/*"
-        }
-    ]
-}
-```
+1. Add the Bucketeer addon: `heroku addons:create bucketeer:hobbyist`
+2. Bucketeer automatically creates and configures your S3 bucket
+3. Environment variables are automatically set in your Heroku app
+4. No additional AWS account or setup required!
+
+### Bucketeer Benefits:
+- **Free tier**: 1GB storage, 10GB bandwidth per month
+- **No AWS account needed**: Bucketeer handles everything
+- **Auto-configuration**: Works out of the box with django-storages
+- **S3-compatible**: Uses standard S3 API
 
 ## Monitoring and Troubleshooting
 
 ```bash
 # View logs
-heroku logs --tail
+heroku logs --tail --app handlr-staging-backend
 
 # Check dyno status
-heroku ps
+heroku ps --app handlr-staging-backend
 
 # Run one-off commands
-heroku run python manage.py shell
+heroku run python manage.py shell --app handlr-staging-backend
 
 # Check config vars
-heroku config
+heroku config --app handlr-staging-backend
 ```
 
 ## Scaling for Production
@@ -224,12 +277,12 @@ When you're ready for production traffic:
 
 ```bash
 # Upgrade to paid dynos for better performance
-heroku ps:scale web=2:standard-1x
-heroku ps:scale worker=1:standard-1x
+heroku ps:scale web=2:standard-1x --app handlr-staging-backend
+heroku ps:scale worker=1:standard-1x --app handlr-staging-backend
 
 # Upgrade add-ons
-heroku addons:upgrade heroku-postgresql:standard-0
-heroku addons:upgrade heroku-redis:premium-0
+heroku addons:upgrade heroku-postgresql:standard-0 --app handlr-staging-backend
+heroku addons:upgrade heroku-redis:premium-0 --app handlr-staging-backend
 ```
 
 ## Continuous Deployment
@@ -243,14 +296,18 @@ To set up automatic deployment from GitHub:
 ## Important Notes
 
 1. **Never commit sensitive data** - Use environment variables for all secrets
-2. **Use S3 for file storage** - Heroku's ephemeral filesystem will delete uploaded files
+2. **Free tier limitations** - Monitor your usage:
+   - PostgreSQL: 10,000 rows limit
+   - Redis: 25MB memory limit
+   - Bucketeer: 1GB storage, 10GB bandwidth per month
+   - Mailgun: 300 emails per month
 3. **Monitor your logs** - Use `heroku logs --tail` to watch for issues
-4. **Set up error tracking** - Consider adding Sentry for error monitoring
-5. **Database backups** - Heroku PostgreSQL automatically backs up your database
+4. **Heroku dyno sleeping** - Free dynos sleep after 30 minutes of inactivity
+5. **Database backups** - Not included with hobby-dev plan (upgrade for backups)
 
 ## Testing Your Deployment
 
-1. Visit your app URL: `https://your-app-name.herokuapp.com`
+1. Visit your app URL: `https://handlr-staging-backend.herokuapp.com`
 2. Test API endpoints
 3. Check that file uploads work (if using S3)
 4. Verify that Celery tasks are processing
@@ -258,5 +315,5 @@ To set up automatic deployment from GitHub:
 ## Need Help?
 
 - Check Heroku documentation: https://devcenter.heroku.com/
-- View your app logs: `heroku logs --tail`
-- Check dyno status: `heroku ps`
+- View your app logs: `heroku logs --tail --app handlr-staging-backend`
+- Check dyno status: `heroku ps --app handlr-staging-backend`
